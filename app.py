@@ -6,7 +6,10 @@ from core.transcriber import transcribe_all
 from core.summarizer import summarize, generate_title
 from core.extractor import extract_action_items, extract_key_decisions, extract_questions
 from core.rag_engine import build_rag_chain, ask_question
-
+from core.mom_generator import generate_mom
+from core.speaker_summary import generate_speaker_summary
+from core.email_generator import generate_followup_email
+from core.pdf_generator import create_pdf_report
 load_dotenv()
 
 # ─── Page Config ────────────────────────────────────────────────────────────────
@@ -107,7 +110,7 @@ h1, h2, h3, h4, h5, h6 {
     border: 1px solid rgba(255,255,255,0.08);
     border-radius: 20px;
     padding: 20px;
-    text-align:center;
+    text-align:left;
     min-height:140px;
     backdrop-filter: blur(20px);
     transition: all .3s ease;
@@ -295,12 +298,28 @@ hr {
     padding: 1.25rem;
     font-size: 0.82rem;
     line-height: 1.8;
-    max-height: 300px;
+    height: 400px;
     overflow-y: auto;
     color: var(--text-muted);
     white-space: pre-wrap;
     word-break: break-word;
 }
+.summary-box {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+    font-size: 0.82rem;
+    line-height: 1.8;
+    height: 400px;
+    overflow-y: auto;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+            
+
+
 
 /* ── Stale Streamlit elements ── */
 .stProgress > div > div > div { background: var(--accent) !important; }
@@ -374,12 +393,16 @@ with st.sidebar:
         st.markdown("---")
         st.markdown('<span class="badge badge-green">Pipeline Status</span>', unsafe_allow_html=True)
         for step, icon, label in [
-            ("audio",      "🔊", "Audio Processing"),
+            ("audio", "🔊", "Audio Processing"),
             ("transcript", "📝", "Transcription"),
-            ("title",      "🏷️", "Title Generation"),
-            ("summary",    "📋", "Summarisation"),
-            ("extract",    "🔍", "Extraction"),
-            ("rag",        "🧠", "RAG Engine"),
+            ("title", "🏷️", "Title Generation"),
+            ("summary", "📋", "Summarisation"),
+
+            ("mom", "📄", "Meeting Minutes"),
+            ("email", "✉️", "Follow-up Email"),
+            ("speaker", "👥", "Speaker Analysis"),
+            ("extract", "🔍", "Extraction"),
+            ("rag", "🧠", "RAG Engine"),
         ]:
             render_step_bar(label, step, icon)
 
@@ -410,17 +433,38 @@ TRANSCRIBE • SUMMARISE • CHAT WITH YOUR MEETINGS
 st.markdown("---")
 m1, m2, m3, m4 = st.columns(4)
 
-with m1:
-    st.metric("⏱ Duration", "00:00:00")
+if st.session_state.get("result"):
+    r = st.session_state.result
 
-with m2:
-    st.metric("📄 Summary", "0")
+    with m1:
+       mins, secs = divmod(int(r["duration"]), 60)
+       st.metric("⏱ Duration", f"{mins:02d}:{secs:02d}")
 
-with m3:
-    st.metric("✅ Tasks", "0")
+    with m2:
+      
+       st.metric("📄 Summary", "✓")
 
-with m4:
-    st.metric("❓ Questions", "0")
+    tasks_count = 0 if "No action items found" in str(r["action_items"]) else str(r["action_items"]).count("\n") + 1
+
+    questions_count = 0 if "No open questions found" in str(r["open_questions"]) else str(r["open_questions"]).count("\n") + 1
+
+    with m3:
+        st.metric("✅ Tasks", tasks_count)
+
+    with m4:
+        st.metric("❓ Questions", questions_count)
+else:
+    with m1:
+        st.metric("⏱ Duration", "00:00:00")
+
+    with m2:
+        st.metric("📄 Summary", "0")
+
+    with m3:
+        st.metric("✅ Tasks", "0")
+
+    with m4:
+        st.metric("❓ Questions", "0")
 # ── Run Pipeline ────────────────────────────────────────────────────────────────
 if run_btn:
     if not source.strip():
@@ -441,7 +485,7 @@ if run_btn:
                 st.info("⚙️ Pipeline running — see sidebar for live status…")
 
             update_step("audio", "active")
-            chunks = process_input(source)
+            chunks, duration_seconds, video_title, thumbnail = process_input(source)
             update_step("audio", "done")
 
             update_step("transcript", "active")
@@ -456,25 +500,47 @@ if run_btn:
             summary = summarize(transcript)
             update_step("summary", "done")
 
+            update_step("mom", "active")
+            meeting_minutes = generate_mom(transcript)
+            update_step("mom", "done")
+
+            update_step("email", "active")
+            followup_email = generate_followup_email(transcript)
+            update_step("email", "done")
+
             update_step("extract", "active")
             action_items  = extract_action_items(transcript)
             decisions     = extract_key_decisions(transcript)
             questions     = extract_questions(transcript)
             update_step("extract", "done")
 
+            update_step("speaker", "active")
+            speaker_summary = generate_speaker_summary(transcript)
+            update_step("speaker", "done")
+
             update_step("rag", "active")
             rag_chain = build_rag_chain(transcript)
             update_step("rag", "done")
 
             st.session_state.result = {
-                "title": title,
-                "transcript": transcript,
-                "summary": summary,
-                "action_items": action_items,
-                "key_decisions": decisions,
-                "open_questions": questions,
-                "rag_chain": rag_chain,
-            }
+               
+            "title": video_title,
+            "thumbnail": thumbnail,
+            "transcript": transcript,
+            "summary": summary,
+            "meeting_minutes": meeting_minutes,
+            "speaker_summary": speaker_summary,
+            "followup_email": followup_email,
+            "action_items": action_items,
+            "key_decisions": decisions,
+            "open_questions": questions,
+            "rag_chain": rag_chain,
+            "duration": duration_seconds,
+        }
+
+
+
+       
             st.session_state.pipeline_done = True
             progress_placeholder.success("✅ Analysis complete!")
             time.sleep(0.5)
@@ -491,6 +557,12 @@ if run_btn:
 if st.session_state.result:
     r = st.session_state.result
 
+    if r.get("thumbnail"):
+        c1, c2, c3 = st.columns([1,2,1])
+
+        with c2:
+            st.image(r["thumbnail"], use_container_width=True)
+
     # Title banner
     st.markdown(f"""
     <div class="card">
@@ -498,47 +570,101 @@ if st.session_state.result:
         <div style="font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:700;color:var(--text)">
             {r['title']}
         </div>
-    </div>""", unsafe_allow_html=True)
+    </div>
+    """, unsafe_allow_html=True)
+    st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
 
-    # Top row: summary + transcript
-    col1, col2 = st.columns([3, 2], gap="medium")
+    # Summary + Transcript
+    col1, col2 = st.columns(2, gap="medium")
 
     with col1:
         st.markdown(f"""
         <div class="card">
             <div class="card-title">📋 Summary</div>
-            <div class="card-content">{r['summary']}</div>
-        </div>""", unsafe_allow_html=True)
+            <div class="summary-box">
+                {r['summary']}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
     with col2:
-        with st.expander("📝 Full Transcript", expanded=False):
-            st.markdown(f'<div class="transcript-box">{r["transcript"]}</div>', unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="card">
+            <div class="card-title">📝 Full Transcript</div>
+            <div class="transcript-box">
+                {r["transcript"]}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
 
-    # Second row: action items | decisions | questions
+    # Meeting Minutes + Speaker Summary
+    mom_col, speaker_col = st.columns(2)
+
+    with mom_col:
+        with st.expander("📄 Meeting Minutes"):
+            st.markdown(r["meeting_minutes"])
+
+    with speaker_col:
+        with st.expander("👥 Speaker Summary"):
+            st.markdown(
+                r.get(
+                    "speaker_summary",
+                    "Speaker information not available."
+                )
+            )
+    st.markdown("<div style='height:15px'></div>", unsafe_allow_html=True)
+
+    with st.expander("✉️ Follow-up Email"):
+        st.markdown(r["followup_email"])
+
+        st.download_button(
+            "📥 Download Email",
+            r["followup_email"],
+            file_name="followup_email.txt"
+        )
+
+    if st.button("📄 Generate PDF"):
+        pdf_file = create_pdf_report(
+            {
+                "title": r["title"],   
+                "summary": r["summary"],
+                "meeting_minutes": r["meeting_minutes"],
+                "action_items": r["action_items"],
+                "key_decisions": r["key_decisions"],
+                "open_questions": r["open_questions"],
+
+
+            }
+        )
+
+        st.session_state["pdf_file"] = pdf_file
+
+    if "pdf_file" in st.session_state:
+        with open(st.session_state["pdf_file"], "rb") as f:
+            st.download_button(
+                "⬇️ Download Meeting Report",
+                f,
+                file_name="meeting_report.pdf",
+                mime="application/pdf",
+            )
+
+    st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
+
+# Second row: action items | decisions | questions
     c1, c2, c3 = st.columns(3, gap="medium")
 
     with c1:
-        st.markdown(f"""
-        <div class="card">
-            <div class="card-title">✅ Action Items</div>
-            <div class="card-content">{r['action_items']}</div>
-        </div>""", unsafe_allow_html=True)
+        with st.expander("✅ Action Items"):
+            st.markdown(r["action_items"])
 
     with c2:
-        st.markdown(f"""
-        <div class="card">
-            <div class="card-title">🔑 Key Decisions</div>
-            <div class="card-content">{r['key_decisions']}</div>
-        </div>""", unsafe_allow_html=True)
+        with st.expander("🔑 Key Decisions"):
+            st.markdown(r["key_decisions"])
 
     with c3:
-        st.markdown(f"""
-        <div class="card">
-            <div class="card-title">❓ Open Questions</div>
-            <div class="card-content">{r['open_questions']}</div>
-        </div>""", unsafe_allow_html=True)
-
-    st.markdown("---")
+        with st.expander("❓ Open Questions"):
+            st.markdown(r["open_questions"])
 
     # ── RAG Chat ──────────────────────────────────────────────────────────────
     st.markdown('<div style="font-family:\'Syne\',sans-serif;font-size:1.2rem;font-weight:700;margin-bottom:1rem">💬 Chat with your Meeting</div>', unsafe_allow_html=True)
