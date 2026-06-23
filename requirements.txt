@@ -6,6 +6,8 @@ langchain-community>=0.3.0
 langchain-core>=0.3.0
 langchain-huggingface>=0.1.0
 langchain-mistralai>=0.2.0
+langchain-chroma>=0.2.0
+langchain-text-splitters>=0.3.0
 
 # Vector DB
 chromadb>=1.0.0
@@ -17,6 +19,7 @@ huggingface-hub>=0.33.0
 # Audio & Video
 yt-dlp>=2025.6.30
 ffmpeg-python>=0.2.0
+pydub>=0.25.1
 
 # Speech to Text
 openai-whisper>=20250625
@@ -35,3 +38,6 @@ reportlab>=4.4.0
 pydantic>=2.11.0
 requests>=2.32.0
 tqdm>=4.67.0
+
+# Compatibility Fix
+protobuf==3.20.3
