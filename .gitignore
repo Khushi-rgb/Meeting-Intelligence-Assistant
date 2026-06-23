@@ -5,3 +5,4 @@ downloades/
 vector_db/
 .env
 *.pyc
+*.pdf
