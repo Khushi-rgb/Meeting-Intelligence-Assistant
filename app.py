@@ -387,7 +387,7 @@ with st.sidebar:
 
     language = st.selectbox("Language", ["english", "hinglish"], index=0)
 
-    run_btn = st.button("⚡  Analyse", use_container_width=True)
+    run_btn = st.button("⚡ Analyse", width="stretch")
 
     if st.session_state.pipeline_done:
         st.markdown("---")
@@ -561,7 +561,7 @@ if st.session_state.result:
         c1, c2, c3 = st.columns([1,2,1])
 
         with c2:
-            st.image(r["thumbnail"], use_container_width=True)
+            st.image(r["thumbnail"], width=600)
 
     # Title banner
     st.markdown(f"""
@@ -621,7 +621,8 @@ if st.session_state.result:
         st.download_button(
             "📥 Download Email",
             r["followup_email"],
-            file_name="followup_email.txt"
+            file_name="followup_email.txt",
+            width="stretch"
         )
 
     if st.button("📄 Generate PDF"):
@@ -647,6 +648,7 @@ if st.session_state.result:
                 f,
                 file_name="meeting_report.pdf",
                 mime="application/pdf",
+                width="stretch"
             )
 
     st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
@@ -699,7 +701,7 @@ if st.session_state.result:
     with chat_col1:
         user_input = st.text_input("Your question", placeholder="What were the main decisions made?", label_visibility="collapsed")
     with chat_col2:
-        send_btn = st.button("Send →", use_container_width=True)
+        send_btn = st.button("Send →", width="stretch")
 
     if send_btn and user_input.strip():
         with st.spinner("Thinking…"):
