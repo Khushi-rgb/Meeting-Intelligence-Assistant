@@ -1,4 +1,6 @@
-from langchain_mistralai import ChatMistralAI
+import time
+
+from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -8,9 +10,9 @@ import os
 
 
 def get_llm():
-    return ChatMistralAI(
-        model="mistral-small-latest",
-        mistral_api_key=os.getenv("MISTRAL_API_KEY"),
+    return ChatGroq(
+        model="openai/gpt-oss-20b",
+        api_key=os.getenv("GROQ_API_KEY"),
         temperature=0.3,
     )
 
@@ -41,10 +43,36 @@ def summarize(transcript: str) -> str:
 
     chunks = split_transcript(transcript)
 
-    chunk_summaries = [
-        map_chain.invoke({"text": chunk})
-        for chunk in chunks
-    ]
+    # chunk_summaries = [
+    #     map_chain.invoke({"text": chunk})
+    #     for chunk in chunks
+    # ]
+
+    chunk_summaries = []
+
+    for chunk in chunks:
+      max_retries = 5
+
+      for attempt in range(max_retries):
+        try:
+            result = map_chain.invoke({"text": chunk})
+            chunk_summaries.append(result)
+
+            # Har successful request ke baad thoda gap
+            time.sleep(2)
+            break
+
+        except Exception as e:
+            if "429" in str(e) or "rate limit" in str(e).lower():
+                if attempt == max_retries - 1:
+                    raise Exception(
+                        "Mistral API rate limit reached. Please wait a minute and try again."
+                    )
+
+                wait_time = 10 * (attempt + 1)
+                time.sleep(wait_time)
+            else:
+                raise e
 
     combined = "\n\n".join(chunk_summaries)
 

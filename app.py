@@ -10,7 +10,7 @@ from core.mom_generator import generate_mom
 from core.speaker_summary import generate_speaker_summary
 from core.email_generator import generate_followup_email
 from core.pdf_generator import create_pdf_report
-load_dotenv()
+load_dotenv(override=True)
 
 # ─── Page Config ────────────────────────────────────────────────────────────────
 st.set_page_config(
