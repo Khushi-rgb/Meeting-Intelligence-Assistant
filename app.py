@@ -650,6 +650,7 @@ if st.session_state.result:
                 mime="application/pdf",
                 width="stretch"
             )
+            
 
     st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
 

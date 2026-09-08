@@ -17,7 +17,7 @@ def get_llm():
     return ChatGroq(
         model="openai/gpt-oss-20b",
         api_key=os.getenv("GROQ_API_KEY"),
-        temperature=0.3,
+        temperature=0,
     )
 
 
@@ -37,15 +37,19 @@ def create_rag_chain(retriever):
             "system",
             """You are an expert meeting assistant.
 
-Answer the user's question based ONLY on the meeting transcript context provided below.
+Answer the user's question using the meeting transcript context.
 
-If the answer can be reasonably inferred from the context, provide the best answer.
+You must answer the user's question whenever the transcript contains information related to it.
+
+For broad questions such as "What is this video about?", summarize the main topic of the transcript.
+
+Do not say "I could not find this information in the meeting transcript" if the transcript contains information that can answer or summarize the question.
 
 Only say:
 
 "I could not find this information in the meeting transcript."
 
-when the context contains no relevant information at all.
+when the meeting transcript contains no relevant information at all.
 
 Always be concise and precise. If quoting someone, mention it clearly.
 

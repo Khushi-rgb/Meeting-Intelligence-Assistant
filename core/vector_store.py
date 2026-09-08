@@ -1,3 +1,4 @@
+
 from langchain_chroma import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -55,6 +56,9 @@ def build_vector_store(transcript: str) -> Chroma:
 
     # Add new transcript documents
     vector_store.add_documents(docs)
+
+    print("Total chunks created:", len(docs))
+    print("Documents in vector DB:", vector_store._collection.count())
 
     return vector_store
 
